@@ -3,7 +3,7 @@ package org.eoanb.voting;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import org.eoanb.voting.listeners.HelpCommand;
-import org.eoanb.voting.listeners.VoteListener;
+import org.eoanb.voting.listeners.PreferentialVotingHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +23,7 @@ public class Main {
             System.exit(1);
         }
 
-        api.addEventListener(new VoteListener());
+        api.addEventListener(new PreferentialVotingHandler());
 		api.addEventListener(new HelpCommand());
     }
 }

@@ -7,24 +7,22 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
-import net.dv8tion.jda.internal.requests.restaction.MessageActionImpl;
-import org.eoanb.voting.Main;
+import org.eoanb.voting.database.IDatabase;
+import org.eoanb.voting.database.PreferentialVoteDB;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 
-public class VoteListener extends ListenerAdapter {
-	private static final Logger logger = LoggerFactory.getLogger(VoteListener.class);
+public class PreferentialVotingHandler extends ListenerAdapter {
+	private static final Logger logger = LoggerFactory.getLogger(PreferentialVotingHandler.class);
+	private static final String BLANK_VOTE_ID = "blank";
 
 	public static String[] candidates = { "Cary", "Mandy", "Randy" };
-	public static int[] votes = { 0, 0, 0 };
 
     @Override
     public void onMessageReceived(@NotNull MessageReceivedEvent event) {
@@ -51,17 +49,21 @@ public class VoteListener extends ListenerAdapter {
 		});
 	}
 
-	private void askCandidate(int candidateID, @Nullable ArrayList<Integer> ignoredCandidates, PrivateChannel channel) {
+	private void askCandidate(int candidateID, @Nullable ArrayList<String> ignoredCandidates, PrivateChannel channel) {
 
 		ArrayList<SelectOption> selectCandidates = new ArrayList<>();
-		for (int i = 0; i < candidates.length; i++) {
-			if (ignoredCandidates != null && ignoredCandidates.contains(i)) continue;
 
-			selectCandidates.add(SelectOption.of(candidates[i], candidates[i]));
+		// Add blank vote.
+		selectCandidates.add(SelectOption.of("Blank/None", BLANK_VOTE_ID));
+
+		for (String candidate : candidates) {
+			if (ignoredCandidates != null && ignoredCandidates.contains(candidate)) continue;
+
+			selectCandidates.add(SelectOption.of(candidate, candidate));
 		}
 
 		channel.sendMessage(new MessageBuilder()
-			.setContent("Insert your choices into this form.")
+			.setContent("Insert your choice into this form.")
 			.setActionRows(ActionRow.of(new SelectMenuImpl(
 				"candidate" + candidateID,
 				"Candidate " + (candidateID + 1),
@@ -75,31 +77,33 @@ public class VoteListener extends ListenerAdapter {
 	HashMap<String, HashMap<Integer, String>> candidatePreferences = new HashMap<>();
 	@Override
 	public void onSelectMenuInteraction(@NotNull SelectMenuInteractionEvent event) {
-		// Check if user already has voted...
+		// TODO Check if user already has voted...
 
-		String id = event.getUser().getId();
+		if (event.getComponentId().startsWith("candidate") || event.getComponentId().equals(BLANK_VOTE_ID)) {
+			// Get user id (to store data).
+			String id = event.getUser().getId();
 
-		// Get the saved preferences or create a new preference.
-		HashMap<Integer, String> preferences = new HashMap<>();
-		if (candidatePreferences.containsKey(id)) preferences = candidatePreferences.get(id);
+			// Get the saved preferences or create a new preference.
+			HashMap<Integer, String> preferences = new HashMap<>();
+			if (candidatePreferences.containsKey(id)) preferences = candidatePreferences.get(id);
 
-		if (event.getComponentId().startsWith("candidate")) {
-			int currentSelection = 0;
+			// Loop through the different candidates and get the index of the selected entry.
+			int selectedCandidate = 0;
 			for (int i = 0; i < candidates.length; i++) {
 				if (event.getComponentId().equals("candidate" + i)) {
-					currentSelection = i;
+					selectedCandidate = i;
 					break;
 				}
 			}
 
-			preferences.put(currentSelection, event.getSelectedOptions().get(0).getValue());
+			preferences.put(selectedCandidate, event.getSelectedOptions().get(0).getValue());
 
 			candidatePreferences.put(id, preferences);
 
-			// If we are done voting, and should now apply those votes.
-			if (preferences.size() != candidates.length) {
-				askCandidate(currentSelection + 1, new ArrayList<>(preferences.keySet()), event.getPrivateChannel());
+			if (preferences.size() < candidates.length) {
+				askCandidate(selectedCandidate, new ArrayList<>(preferences.values()), event.getPrivateChannel());
 			} else {
+				// If we are done voting and should apply those votes.
 				StringBuilder message = new StringBuilder("Successfully voted for:");
 
 				for (int i = 0; i < preferences.size(); i++) {
@@ -111,6 +115,7 @@ public class VoteListener extends ListenerAdapter {
 				event.reply(message.toString()).queue();
 
 				// Do some stuff to put votes in database or something idk
+				IDatabase db = new PreferentialVoteDB(id);
 			}
 		}
 	}
