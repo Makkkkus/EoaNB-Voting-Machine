@@ -1,6 +1,5 @@
 package org.eoanb.voting.database;
 
-public interface IDatabase {
-
+public interface Database {
 	void sendToDatabase();
 }

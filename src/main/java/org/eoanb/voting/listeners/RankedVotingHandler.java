@@ -8,8 +8,8 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
-import org.eoanb.voting.database.IDatabase;
-import org.eoanb.voting.database.PreferentialVoteDB;
+import org.eoanb.voting.database.Database;
+import org.eoanb.voting.database.RankedVotingDatabase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -17,10 +17,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
-public class PreferentialVotingHandler extends ListenerAdapter {
-	private static final Logger logger = LoggerFactory.getLogger(PreferentialVotingHandler.class);
-	private static final String BLANK_VOTE_ID = "blank";
+public class RankedVotingHandler extends ListenerAdapter {
+	private static final Logger logger = LoggerFactory.getLogger(RankedVotingHandler.class);
+	private static final String ID_PREFIX = "rpvoting_";
+	private static final HashMap<String, ArrayList<String>> candidatePreferences = new HashMap<>();
 
 	public static String[] candidates = { "Cary", "Mandy", "Randy" };
 
@@ -33,7 +36,7 @@ public class PreferentialVotingHandler extends ListenerAdapter {
         String message = event.getMessage().getContentStripped();
 
 		// Check if the command is to vote.
-        if (message.equals("!vote")) {
+        if (message.equalsIgnoreCase("!vote")) {
 			logger.info("Received command to vote by {}", event.getAuthor().getName());
 			event.getChannel().sendMessage("Received voting request; check DMs.").queue();
 			handleVoting(event.getAuthor());
@@ -54,7 +57,9 @@ public class PreferentialVotingHandler extends ListenerAdapter {
 		ArrayList<SelectOption> selectCandidates = new ArrayList<>();
 
 		// Add blank vote.
-		selectCandidates.add(SelectOption.of("Blank/None", BLANK_VOTE_ID));
+		if (candidateID > 0) {
+			selectCandidates.add(SelectOption.of("Blank/None", "blank"));
+		}
 
 		for (String candidate : candidates) {
 			if (ignoredCandidates != null && ignoredCandidates.contains(candidate)) continue;
@@ -65,7 +70,7 @@ public class PreferentialVotingHandler extends ListenerAdapter {
 		channel.sendMessage(new MessageBuilder()
 			.setContent("Insert your choice into this form.")
 			.setActionRows(ActionRow.of(new SelectMenuImpl(
-				"candidate" + candidateID,
+				ID_PREFIX + "candidate" + candidateID,
 				"Candidate " + (candidateID + 1),
 				1,
 				1,
@@ -74,48 +79,57 @@ public class PreferentialVotingHandler extends ListenerAdapter {
 			.build()).queue();
 	}
 
-	HashMap<String, HashMap<Integer, String>> candidatePreferences = new HashMap<>();
 	@Override
 	public void onSelectMenuInteraction(@NotNull SelectMenuInteractionEvent event) {
-		// TODO Check if user already has voted...
+		String selectMenuID = event.getComponentId();
 
-		if (event.getComponentId().startsWith("candidate") || event.getComponentId().equals(BLANK_VOTE_ID)) {
+		if (selectMenuID.startsWith(ID_PREFIX + "candidate")) {
 			// Get user id (to store data).
 			String id = event.getUser().getId();
 
+			// TODO Check if user has voted...
+			Database db = new RankedVotingDatabase();
+
 			// Get the saved preferences or create a new preference.
-			HashMap<Integer, String> preferences = new HashMap<>();
-			if (candidatePreferences.containsKey(id)) preferences = candidatePreferences.get(id);
+			ArrayList<String> preferences = candidatePreferences.getOrDefault(id, new ArrayList<>());
 
 			// Loop through the different candidates and get the index of the selected entry.
-			int selectedCandidate = 0;
-			for (int i = 0; i < candidates.length; i++) {
-				if (event.getComponentId().equals("candidate" + i)) {
-					selectedCandidate = i;
-					break;
-				}
+
+			// Get which vote we are on.
+			int currentVote;
+			try {
+				currentVote = Integer.parseInt(selectMenuID.substring(selectMenuID.length() - 1));
+			} catch (NumberFormatException e) {
+				logger.error("Failed to parse what vote we are on. Resetting votes for {}", event.getUser().getName());
+
+				candidatePreferences.remove(id);
+				return;
 			}
 
-			preferences.put(selectedCandidate, event.getSelectedOptions().get(0).getValue());
+			preferences.add(currentVote, event.getSelectedOptions().get(0).getValue());
 
 			candidatePreferences.put(id, preferences);
 
 			if (preferences.size() < candidates.length) {
-				askCandidate(selectedCandidate, new ArrayList<>(preferences.values()), event.getPrivateChannel());
+				// Ask for next candidate selection.
+				askCandidate(currentVote + 1, preferences, event.getPrivateChannel());
 			} else {
-				// If we are done voting and should apply those votes.
-				StringBuilder message = new StringBuilder("Successfully voted for:");
+				if (preferences.size() == candidates.length) {
+					// If we are done voting and should apply those votes.
+					StringBuilder message = new StringBuilder("Successfully voted for:");
 
-				for (int i = 0; i < preferences.size(); i++) {
-					message.append(" ");
-					message.append(preferences.get(i));
+					for (String preference : preferences) {
+						message.append(" ");
+						message.append(preference);
+					}
+
+					message.append(".");
+					event.reply(message.toString()).queue();
+
+					// TODO: Add votes to database.
 				}
 
-				message.append(".");
-				event.reply(message.toString()).queue();
-
-				// Do some stuff to put votes in database or something idk
-				IDatabase db = new PreferentialVoteDB(id);
+				candidatePreferences.remove(id);
 			}
 		}
 	}
