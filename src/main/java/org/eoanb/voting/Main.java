@@ -17,6 +17,7 @@ public class Main {
     public static void main(String[] args) {
         JDA api = null;
         try {
+			logger.info("Token is {}", System.getenv().getOrDefault("EOANB_BOT_TOKEN", ""));
             api = JDABuilder.createDefault(System.getenv().getOrDefault("EOANB_BOT_TOKEN", "")).build();
         } catch (LoginException e) {
 			logger.error("Token is incorrect -- please submit a correct token. Terminating.");

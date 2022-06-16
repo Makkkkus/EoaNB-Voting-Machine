@@ -1,7 +1,10 @@
 package org.eoanb.voting;
 
 import org.eoanb.voting.listeners.RankedVotingHandler;
+import org.json.JSONObject;
 
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class RankedVoter {
@@ -22,19 +25,18 @@ public class RankedVoter {
 			// Ask for next vote.
 			return VoteStatus.NEXT_VOTE;
 		} else if (votesCounted == RankedVotingHandler.candidates.length) {
-
-			// TODO: Send to database
-
 			voted = true;
 
-			// Delete stored votes.
-			votes.clear();
-
 			return VoteStatus.SUCCESS;
+		} else {
+			votes.clear();
+			return VoteStatus.FAILED;
 		}
+	}
 
+	public void clear() {
+		// Delete stored votes.
 		votes.clear();
-		return VoteStatus.FAILED;
 	}
 
 	public boolean hasVoted() {

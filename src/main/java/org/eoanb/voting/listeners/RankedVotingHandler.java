@@ -8,13 +8,18 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
+import org.eoanb.voting.FileHandler;
 import org.eoanb.voting.RankedVoter;
 import org.eoanb.voting.VoteStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -123,6 +128,15 @@ public class RankedVotingHandler extends ListenerAdapter {
 
 					message.append(".");
 					event.reply(message.toString()).queue();
+
+					String json = FileHandler.readFile("C:/test.json");
+					JSONObject jsonObject = new JSONObject(json);
+
+					jsonObject.put(id, new JSONArray(voter.getVotes()));
+
+					FileHandler.writeFile("C:/test.json", jsonObject.toString(4));
+
+					voter.clear();
 					break;
 				case NEXT_VOTE:
 					sendSelectMenu(currentVote + 1, new ArrayList<>(Arrays.asList(voter.getVotes())), event.getPrivateChannel());
