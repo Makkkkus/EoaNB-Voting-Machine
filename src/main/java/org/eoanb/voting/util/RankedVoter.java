@@ -1,6 +1,6 @@
 package org.eoanb.voting.util;
 
-import org.eoanb.voting.listeners.RankedVotingHandler;
+import org.eoanb.voting.handlers.RankedVotingHandler;
 import org.json.JSONArray;
 
 import java.io.IOException;

@@ -3,7 +3,8 @@ package org.eoanb.voting;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import org.eoanb.voting.listeners.HelpCommand;
-import org.eoanb.voting.listeners.RankedVotingHandler;
+import org.eoanb.voting.listeners.SelectMenuListener;
+import org.eoanb.voting.listeners.VoteCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +25,8 @@ public class Main {
             System.exit(1);
         }
 
-        api.addEventListener(new RankedVotingHandler());
+        api.addEventListener(new VoteCommand());
 		api.addEventListener(new HelpCommand());
+		api.addEventListener(new SelectMenuListener());
     }
 }
