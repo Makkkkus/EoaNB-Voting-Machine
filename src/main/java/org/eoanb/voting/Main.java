@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import javax.security.auth.login.LoginException;
 
 public class Main {
-	public static final String VOTING_CHANNEL = "971485915669229628";
+	public static final String VOTING_CHANNEL = "980078789243580456";
 
 	private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
