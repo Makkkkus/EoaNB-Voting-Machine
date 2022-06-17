@@ -1,6 +1,6 @@
 package org.eoanb.voting.database;
 
-import org.eoanb.voting.RankedVoter;
+import org.eoanb.voting.util.RankedVoter;
 
 public class RankedVotingDatabase implements Database {
 	@Override

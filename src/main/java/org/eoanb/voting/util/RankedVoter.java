@@ -1,18 +1,18 @@
-package org.eoanb.voting;
+package org.eoanb.voting.util;
 
 import org.eoanb.voting.listeners.RankedVotingHandler;
-import org.json.JSONObject;
+import org.json.JSONArray;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class RankedVoter {
 	private final ArrayList<String> votes = new ArrayList<>();
-	private boolean voted = false;
 	private int votesCounted = 0;
 
 	public VoteStatus vote(int currentVote, String vote) {
+
+		if (currentVote != votesCounted) return VoteStatus.FAILED_SILENT;
 
 		// No need to add blank votes to our votes.
 		if (!vote.equals("blank")) {
@@ -25,22 +25,28 @@ public class RankedVoter {
 			// Ask for next vote.
 			return VoteStatus.NEXT_VOTE;
 		} else if (votesCounted == RankedVotingHandler.candidates.length) {
-			voted = true;
+			{ // Save the votes.
+				String json = new JSONArray().toString();
+
+				try {
+					json = FileHandler.readFile("votes.json");
+				} catch (IOException ignored) { }
+
+				JSONArray jsonArray = new JSONArray(json);
+				jsonArray.put(new JSONArray(getVotes()));
+
+				try {
+					FileHandler.writeFile("votes.json", jsonArray.toString(4));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 
 			return VoteStatus.SUCCESS;
 		} else {
 			votes.clear();
 			return VoteStatus.FAILED;
 		}
-	}
-
-	public void clear() {
-		// Delete stored votes.
-		votes.clear();
-	}
-
-	public boolean hasVoted() {
-		return voted;
 	}
 
 	public String[] getVotes() {

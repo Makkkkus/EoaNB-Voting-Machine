@@ -8,18 +8,17 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
-import org.eoanb.voting.FileHandler;
-import org.eoanb.voting.RankedVoter;
-import org.eoanb.voting.VoteStatus;
+import org.eoanb.voting.Main;
+import org.eoanb.voting.util.FileHandler;
+import org.eoanb.voting.util.RankedVoter;
+import org.eoanb.voting.util.VoteStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.nio.file.Files;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,17 +27,34 @@ public class RankedVotingHandler extends ListenerAdapter {
 	private static final Logger logger = LoggerFactory.getLogger(RankedVotingHandler.class);
 	private static final String ID_PREFIX = "rpvoting_";
 
-	public static final HashMap<String, RankedVoter> voters = new HashMap<>();
+	public static final HashMap<String, @Nullable RankedVoter> voters = new HashMap<>();
 	public static String[] candidates = { "Cary", "Mandy", "Randy" };
 
-	// TODO: Load voters from database.
+	static {
+		String json = new JSONArray().toString();
+
+		try {
+			json = FileHandler.readFile("voters.json");
+		} catch (IOException ignored) { }
+
+		JSONArray jsonArray = new JSONArray(json);
+
+		for (Object id : jsonArray) {
+			if (id instanceof String) {
+				voters.put((String) id, null);
+			}
+		}
+	}
 
     @Override
     public void onMessageReceived(@NotNull MessageReceivedEvent event) {
+		// Don't listen to bots.
         if (event.getAuthor().isBot()) return;
 
-		// Only people who can vote should be able to vote
-		//if (!event.getChannel().equals(event.getJDA().getGuildChannelById(Main.VOTING_CHANNEL))) return;
+		// Only people who can vote should be able to vote.
+		if (!event.getChannel().equals(event.getJDA().getGuildChannelById(Main.VOTING_CHANNEL))) return;
+
+		// Get the content of the message.
         String message = event.getMessage().getContentStripped();
 
 		// Check if the command is to vote.
@@ -51,22 +67,21 @@ public class RankedVotingHandler extends ListenerAdapter {
 
 				String id = event.getAuthor().getId();
 
-				RankedVoter voter = voters.getOrDefault(id, new RankedVoter());
-
-				if (voter.hasVoted()) {
-					channel.sendMessage("You have already voted, overriding last vote.").queue();
+				if (voters.containsKey(id)) {
+					channel.sendMessage("You have already voted.").queue();
+					return;
 				}
+
+				voters.put(id, new RankedVoter());
 
 				// Send first select menu.
 				sendSelectMenu(0, null, channel);
 
-				voters.put(id, voter);
 			});
         }
     }
 
 	private void sendSelectMenu(int voteNumber, @Nullable ArrayList<String> ignoredCandidates, PrivateChannel channel) {
-
 		ArrayList<SelectOption> selectCandidates = new ArrayList<>();
 
 		// Add blank vote.
@@ -101,6 +116,9 @@ public class RankedVotingHandler extends ListenerAdapter {
 			// Get the voter.
 			RankedVoter voter = voters.get(id);
 
+			if (voter == null)
+				return;
+
 			// Get which vote we are on.
 			int currentVote;
 			try {
@@ -129,14 +147,24 @@ public class RankedVotingHandler extends ListenerAdapter {
 					message.append(".");
 					event.reply(message.toString()).queue();
 
-					String json = FileHandler.readFile("C:/test.json");
-					JSONObject jsonObject = new JSONObject(json);
+					{ // Add voter to database.
+						String json = new JSONArray().toString();
 
-					jsonObject.put(id, new JSONArray(voter.getVotes()));
+						try {
+							json = FileHandler.readFile("voters.json");
+						} catch (IOException ignored) { }
 
-					FileHandler.writeFile("C:/test.json", jsonObject.toString(4));
+						JSONArray jsonArray = new JSONArray(json);
+						jsonArray.put(id);
 
-					voter.clear();
+						try {
+							FileHandler.writeFile("voters.json", jsonArray.toString(4));
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+
+					voters.put(id, null);
 					break;
 				case NEXT_VOTE:
 					sendSelectMenu(currentVote + 1, new ArrayList<>(Arrays.asList(voter.getVotes())), event.getPrivateChannel());
