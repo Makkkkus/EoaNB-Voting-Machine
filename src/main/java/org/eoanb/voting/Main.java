@@ -28,5 +28,7 @@ public class Main {
         api.addEventListener(new VoteCommand());
 		api.addEventListener(new HelpCommand());
 		api.addEventListener(new SelectMenuListener());
+
+		VoteManager.initVote();
     }
 }

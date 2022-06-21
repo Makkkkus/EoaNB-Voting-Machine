@@ -15,7 +15,7 @@ public class SelectMenuListener extends ListenerAdapter {
 	public void onSelectMenuInteraction(@NotNull SelectMenuInteractionEvent event) {
 
 		// For ranked voting.
-		if (event.getComponentId().startsWith(VoteManager.RANKED_VOTE_PREFIX + "candidate")) {
+		if (event.getComponentId().startsWith(VoteManager.RANKED_VOTE_PREFIX + "candidate") && VoteManager.activeVote instanceof RankedVotingHandler) {
 			// Get which vote we are on.
 			int currentVote = -1;
 			try {
@@ -27,7 +27,7 @@ public class SelectMenuListener extends ListenerAdapter {
 			// Get user id (to store data).
 			String id = event.getUser().getId();
 
-			RankedVotingHandler.pollNextVote(id, event, currentVote);
+			((RankedVotingHandler) VoteManager.activeVote).pollNextVote(id, event, currentVote);
 		}
 	}
 }

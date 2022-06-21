@@ -3,7 +3,7 @@ package org.eoanb.voting.listeners;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.eoanb.voting.Main;
-import org.eoanb.voting.handlers.RankedVotingHandler;
+import org.eoanb.voting.VoteManager;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,15 +23,14 @@ public class VoteCommand extends ListenerAdapter {
 		String message = event.getMessage().getContentStripped();
 
 		// Check if the command is to vote.
-		if (message.equalsIgnoreCase("!vote")) {
+		if (message.equalsIgnoreCase("!vote") && VoteManager.activeVote != null) {
 			logger.info("Received command to vote by {}", event.getAuthor().getName());
 			event.getChannel().sendMessage("Received voting request; check DMs.").queue();
 
 			event.getAuthor().openPrivateChannel().queue(channel -> {
 				if (!channel.canTalk()) logger.error("Can't send DM to {}", channel.getName());
 
-				// TODO: Add more voting systems.
-				RankedVotingHandler.startVote(event.getAuthor().getId(), channel);
+				VoteManager.activeVote.startVote(event.getAuthor().getId(), channel);
 			});
 		}
 	}

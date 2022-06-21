@@ -20,13 +20,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-public class RankedVotingHandler {
+public class RankedVotingHandler implements VotingHandler {
 	private static final Logger logger = LoggerFactory.getLogger(RankedVotingHandler.class);
 
-	public static final HashMap<String, @Nullable RankedVoter> voters = new HashMap<>();
+	private final HashMap<String, @Nullable RankedVoter> voters = new HashMap<>();
 	public static String[] candidates = { "Cary", "Mandy", "Randy" };
 
-	static {
+	{
 		String json = new JSONArray().toString();
 
 		try {
@@ -42,7 +42,8 @@ public class RankedVotingHandler {
 		}
 	}
 
-	public static void startVote(String id, PrivateChannel channel) {
+	@Override
+	public void startVote(String id, PrivateChannel channel) {
 		if (voters.containsKey(id)) {
 			channel.sendMessage("You have already voted.").queue();
 			return;
@@ -54,7 +55,7 @@ public class RankedVotingHandler {
 		sendSelectMenu(0, null, channel);
 	}
 
-	public static void pollNextVote(String id, SelectMenuInteractionEvent event, int currentVote) {
+	public void pollNextVote(String id, SelectMenuInteractionEvent event, int currentVote) {
 		// Get the voter.
 		RankedVoter voter = voters.get(id);
 
@@ -102,6 +103,9 @@ public class RankedVotingHandler {
 					}
 				}
 
+				logger.info("User with id \"{}\" finished voting.", id);
+
+				// Reserve an empty slot to confirm that this user has voted.
 				voters.put(id, null);
 			break;
 			case NEXT_VOTE:
@@ -113,7 +117,7 @@ public class RankedVotingHandler {
 		}
 	}
 
-	private static void sendSelectMenu(int voteNumber, @Nullable ArrayList<String> ignoredCandidates, PrivateChannel channel) {
+	private void sendSelectMenu(int voteNumber, @Nullable ArrayList<String> ignoredCandidates, PrivateChannel channel) {
 		ArrayList<SelectOption> selectCandidates = new ArrayList<>();
 
 		// Add blank vote.
