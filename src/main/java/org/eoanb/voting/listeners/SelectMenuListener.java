@@ -3,6 +3,7 @@ package org.eoanb.voting.listeners;
 import net.dv8tion.jda.api.events.interaction.component.SelectMenuInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.eoanb.voting.VoteManager;
+import org.eoanb.voting.handlers.BinaryVotingHandler;
 import org.eoanb.voting.handlers.RankedVotingHandler;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -15,8 +16,8 @@ public class SelectMenuListener extends ListenerAdapter {
 	public void onSelectMenuInteraction(@NotNull SelectMenuInteractionEvent event) {
 
 		// For ranked voting.
-		if (event.getComponentId().startsWith(VoteManager.RANKED_VOTE_PREFIX + "candidate") && VoteManager.activeVote instanceof RankedVotingHandler) {
-			// Get which vote we are on.
+		if (event.getComponentId().startsWith(RankedVotingHandler.RANKED_VOTE_PREFIX + "candidate") && VoteManager.activeVote instanceof RankedVotingHandler) {
+			// Get an int with the value of the current vote. This is done by getting the last character in the id string, and converting it to an integer.
 			int currentVote = -1;
 			try {
 				currentVote = Integer.parseInt(event.getComponentId().substring(event.getComponentId().length() - 1));
@@ -27,7 +28,19 @@ public class SelectMenuListener extends ListenerAdapter {
 			// Get user id (to store data).
 			String id = event.getUser().getId();
 
-			((RankedVotingHandler) VoteManager.activeVote).pollNextVote(id, event, currentVote);
+			// Get vote.
+			String vote = event.getSelectedOptions().get(0).getValue();
+
+			// Send request to get next vote. (The handling of any possible errors is handled by this method.)
+			((RankedVotingHandler) VoteManager.activeVote).pollNextVote(id, event.getPrivateChannel(), currentVote, vote);
+		} else if (event.getComponentId().equals(BinaryVotingHandler.BINARY_VOTE_ID) && VoteManager.activeVote instanceof BinaryVotingHandler) {
+			// Get user id (to store data).
+			String id = event.getUser().getId();
+
+			// Get vote.
+			String vote = event.getSelectedOptions().get(0).getValue();
+
+			((BinaryVotingHandler) VoteManager.activeVote).saveResult(id, event.getPrivateChannel(), vote);
 		}
 	}
 }

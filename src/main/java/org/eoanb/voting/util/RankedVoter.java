@@ -11,15 +11,13 @@ public class RankedVoter {
 	private int votesCounted = 0;
 
 	public VoteStatus vote(int currentVote, String vote) {
-
 		if (currentVote != votesCounted) return VoteStatus.FAILED_SILENT;
+		votesCounted++;
 
 		// No need to add blank votes to our votes.
 		if (!vote.equals("blank")) {
 			votes.add(currentVote, vote);
 		}
-
-		votesCounted++;
 
 		if (votesCounted < RankedVotingHandler.candidates.length) {
 			// Ask for next vote.
@@ -29,14 +27,14 @@ public class RankedVoter {
 				String json = new JSONArray().toString();
 
 				try {
-					json = FileHandler.readFile("votes.json");
+					json = FileHandler.readFile(RankedVotingHandler.votesFile);
 				} catch (IOException ignored) { }
 
 				JSONArray jsonArray = new JSONArray(json);
 				jsonArray.put(new JSONArray(getVotes()));
 
 				try {
-					FileHandler.writeFile("votes.json", jsonArray.toString(4));
+					FileHandler.writeFile(RankedVotingHandler.votesFile, jsonArray.toString(4));
 				} catch (IOException e) {
 					e.printStackTrace();
 				}

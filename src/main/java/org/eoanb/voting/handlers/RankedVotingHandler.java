@@ -23,14 +23,19 @@ import java.util.HashMap;
 public class RankedVotingHandler implements VotingHandler {
 	private static final Logger logger = LoggerFactory.getLogger(RankedVotingHandler.class);
 
+	public static final String RANKED_VOTE_PREFIX = "rpvoting_";
+	public static final String votersFile = "ranked_voters.json";
+	public static final String votesFile = "ranked_votes.json";
+
 	private final HashMap<String, @Nullable RankedVoter> voters = new HashMap<>();
 	public static String[] candidates = { "Cary", "Mandy", "Randy" };
+
 
 	{
 		String json = new JSONArray().toString();
 
 		try {
-			json = FileHandler.readFile("voters.json");
+			json = FileHandler.readFile(votersFile);
 		} catch (IOException ignored) { }
 
 		JSONArray jsonArray = new JSONArray(json);
@@ -55,7 +60,23 @@ public class RankedVotingHandler implements VotingHandler {
 		sendSelectMenu(0, null, channel);
 	}
 
-	public void pollNextVote(String id, SelectMenuInteractionEvent event, int currentVote) {
+	@Override
+	public String getResults() {
+		String json = new JSONArray().toString();
+		try {
+			json = FileHandler.readFile(votesFile);
+		} catch (IOException ignored) { }
+
+		return json;
+	}
+
+	@Override
+	public void cleanupVote() {
+		FileHandler.deleteFile(votesFile);
+		FileHandler.deleteFile(votersFile);
+	}
+
+	public void pollNextVote(String id, PrivateChannel channel, int currentVote, String voteString) {
 		// Get the voter.
 		RankedVoter voter = voters.get(id);
 
@@ -70,7 +91,7 @@ public class RankedVotingHandler implements VotingHandler {
 		}
 
 		// Actually vote.
-		VoteStatus status = voter.vote(currentVote, event.getSelectedOptions().get(0).getValue());
+		VoteStatus status = voter.vote(currentVote, voteString);
 
 		// Do stuff according to the result of the vote.
 		switch (status) {
@@ -84,20 +105,20 @@ public class RankedVotingHandler implements VotingHandler {
 				}
 
 				message.append(".");
-				event.reply(message.toString()).queue();
+				channel.sendMessage(message.toString()).queue();
 
 				{ // Add voter to database.
 					String json = new JSONArray().toString();
 
 					try {
-					json = FileHandler.readFile("voters.json");
+					json = FileHandler.readFile(votersFile);
 					} catch (IOException ignored) { }
 
 					JSONArray jsonArray = new JSONArray(json);
 					jsonArray.put(id);
 
 					try {
-						FileHandler.writeFile("voters.json", jsonArray.toString(4));
+						FileHandler.writeFile(votersFile, jsonArray.toString(4));
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -107,12 +128,12 @@ public class RankedVotingHandler implements VotingHandler {
 
 				// Reserve an empty slot to confirm that this user has voted.
 				voters.put(id, null);
-			break;
+				break;
 			case NEXT_VOTE:
-				sendSelectMenu(currentVote + 1, new ArrayList<>(Arrays.asList(voter.getVotes())), event.getPrivateChannel());
+				sendSelectMenu(currentVote + 1, new ArrayList<>(Arrays.asList(voter.getVotes())), channel);
 				break;
 			case FAILED:
-				event.reply("Error when voting. Please try again.").queue();
+				channel.sendMessage("Error when voting. Please try again.").queue();
 				break;
 		}
 	}
@@ -134,7 +155,7 @@ public class RankedVotingHandler implements VotingHandler {
 		channel.sendMessage(new MessageBuilder()
 			.setContent("Insert your choice into this form.")
 			.setActionRows(ActionRow.of(new SelectMenuImpl(
-				VoteManager.RANKED_VOTE_PREFIX + "candidate" + voteNumber,
+				RANKED_VOTE_PREFIX + "candidate" + voteNumber,
 				"Candidate " + (voteNumber + 1),
 				1,
 				1,

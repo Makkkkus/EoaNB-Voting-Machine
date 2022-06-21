@@ -17,7 +17,7 @@ public class VoteCommand extends ListenerAdapter {
 		if (event.getAuthor().isBot()) return;
 
 		// Only people who can vote should be able to vote.
-		if (!event.getChannel().equals(event.getJDA().getGuildChannelById(Main.VOTING_CHANNEL))) return;
+		if (!event.getChannel().equals(event.getJDA().getGuildChannelById(VoteManager.VOTING_CHANNEL))) return;
 
 		// Get the content of the message.
 		String message = event.getMessage().getContentStripped();

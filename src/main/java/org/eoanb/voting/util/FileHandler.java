@@ -36,4 +36,8 @@ public class FileHandler {
 			bufferedWriter.write(data);
 		}
 	}
+
+	public static boolean deleteFile(String filename) {
+		return new File(STORE_DIRECTORY + "/" + filename).delete();
+	}
 }
