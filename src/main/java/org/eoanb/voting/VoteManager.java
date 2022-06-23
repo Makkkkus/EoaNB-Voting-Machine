@@ -16,10 +16,10 @@ public class VoteManager {
 	public static final String VOTING_CHANNEL = "980078789243580456";
 
 	@Nullable
-	private static ArrayList<VotingHandler> activeVotes = new ArrayList<>();
+	private static final ArrayList<VotingHandler> activeVotes = new ArrayList<>();
 
 	// TODO: Replace this with a database.
-	private static HashMap<String, Integer> userActiveVotes = new HashMap<>();
+	private static final HashMap<String, Integer> userActiveVotes = new HashMap<>();
 
 	public static void initVotes() {
 		logger.info("Initialising voting system...");
@@ -28,10 +28,12 @@ public class VoteManager {
 	public static void startVote(int voteID, String id, PrivateChannel channel) {
 		userActiveVotes.put(id, voteID);
 
+		assert activeVotes != null;
 		activeVotes.get(voteID).startVote(id, channel);
 	}
 
 	public static void setActiveVote(VotingHandler system) {
+		assert activeVotes != null;
 		activeVotes.add(system);
 
 		logger.info("Successfully changed voting system.");
@@ -43,12 +45,14 @@ public class VoteManager {
 	}
 
 	public static void endActiveVote(int voteId) {
+		assert activeVotes != null;
 		activeVotes.get(voteId).cleanupVote();
 
 		logger.info("Successfully ended vote.");
 	}
 
 	public static VotingHandler getActiveVoteFromUserID(String id) {
+		assert activeVotes != null;
 		return activeVotes.get(userActiveVotes.get(id));
 	}
 

@@ -2,6 +2,7 @@ package org.eoanb.voting;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import org.eoanb.voting.database.DatabaseHandler;
 import org.eoanb.voting.listeners.AdminCommands;
 import org.eoanb.voting.listeners.HelpCommand;
 import org.eoanb.voting.listeners.SelectMenuListener;
@@ -13,6 +14,8 @@ import javax.security.auth.login.LoginException;
 
 public class Main {
 	private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
+	public static final DatabaseHandler db = new DatabaseHandler();
 
     public static void main(String[] args) {
         JDA api = null;
@@ -28,6 +31,8 @@ public class Main {
         api.addEventListener(new VoteCommand());
 		api.addEventListener(new HelpCommand());
 		api.addEventListener(new SelectMenuListener());
+
+		db.init();
 
 		VoteManager.initVotes();
     }
