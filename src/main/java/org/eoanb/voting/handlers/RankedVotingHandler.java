@@ -2,49 +2,32 @@ package org.eoanb.voting.handlers;
 
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.events.interaction.component.SelectMenuInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
-import org.eoanb.voting.VoteManager;
-import org.eoanb.voting.util.FileHandler;
 import org.eoanb.voting.util.RankedVoter;
 import org.eoanb.voting.util.VoteStatus;
 import org.jetbrains.annotations.Nullable;
-import org.json.JSONArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class RankedVotingHandler implements VotingHandler {
 	private static final Logger logger = LoggerFactory.getLogger(RankedVotingHandler.class);
 
 	public static final String RANKED_VOTE_PREFIX = "rpvoting_";
-	public static final String votersFile = "ranked_voters.json";
-	public static final String votesFile = "ranked_votes.json";
 
+	public final String[] candidates;
+
+	// TODO: Replace these with a database.
 	private final HashMap<String, @Nullable RankedVoter> voters = new HashMap<>();
-	public static String[] candidates = { "Cary", "Mandy", "Randy" };
+	private final HashSet<ArrayList<String>> votes = new HashSet<>();
 
-
-	{
-		String json = new JSONArray().toString();
-
-		try {
-			json = FileHandler.readFile(votersFile);
-		} catch (IOException ignored) { }
-
-		JSONArray jsonArray = new JSONArray(json);
-
-		for (Object id : jsonArray) {
-			if (id instanceof String) {
-				voters.put((String) id, null);
-			}
-		}
+	public RankedVotingHandler(String[] candidates) {
+		this.candidates = candidates;
 	}
 
 	@Override
@@ -61,19 +44,12 @@ public class RankedVotingHandler implements VotingHandler {
 	}
 
 	@Override
-	public String getResults() {
-		String json = new JSONArray().toString();
-		try {
-			json = FileHandler.readFile(votesFile);
-		} catch (IOException ignored) { }
-
-		return json;
+	public void cleanupVote() {
 	}
 
 	@Override
-	public void cleanupVote() {
-		FileHandler.deleteFile(votesFile);
-		FileHandler.deleteFile(votersFile);
+	public void save() {
+
 	}
 
 	public void pollNextVote(String id, PrivateChannel channel, int currentVote, String voteString) {
@@ -91,7 +67,7 @@ public class RankedVotingHandler implements VotingHandler {
 		}
 
 		// Actually vote.
-		VoteStatus status = voter.vote(currentVote, voteString);
+		VoteStatus status = voter.vote(this, currentVote, voteString);
 
 		// Do stuff according to the result of the vote.
 		switch (status) {
@@ -107,30 +83,14 @@ public class RankedVotingHandler implements VotingHandler {
 				message.append(".");
 				channel.sendMessage(message.toString()).queue();
 
-				{ // Add voter to database.
-					String json = new JSONArray().toString();
-
-					try {
-					json = FileHandler.readFile(votersFile);
-					} catch (IOException ignored) { }
-
-					JSONArray jsonArray = new JSONArray(json);
-					jsonArray.put(id);
-
-					try {
-						FileHandler.writeFile(votersFile, jsonArray.toString(4));
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-
 				logger.info("User with id \"{}\" finished voting.", id);
 
-				// Reserve an empty slot to confirm that this user has voted.
+				// Save.
 				voters.put(id, null);
+				votes.add(voter.getVotes());
 				break;
 			case NEXT_VOTE:
-				sendSelectMenu(currentVote + 1, new ArrayList<>(Arrays.asList(voter.getVotes())), channel);
+				sendSelectMenu(currentVote + 1, voter.getVotes(), channel);
 				break;
 			case FAILED:
 				channel.sendMessage("Error when voting. Please try again.").queue();

@@ -20,11 +20,6 @@ public class AdminCommands extends ListenerAdapter {
 
 		switch (args[0].toLowerCase()) {
 			case "!holdvote":
-				if (VoteManager.activeVote != null) {
-					event.getChannel().sendMessage("Vote is ongoing; end current vote first.").queue();
-					return;
-				}
-
 				if (args.length < 2) {
 					event.getChannel().sendMessage("You need to provide a voting system to choose.").queue();
 					return;
@@ -32,7 +27,7 @@ public class AdminCommands extends ListenerAdapter {
 
 				switch (args[1].toLowerCase()) {
 					case "ranked":
-						VoteManager.setActiveVote(new RankedVotingHandler());
+						VoteManager.setActiveVote(new RankedVotingHandler(new String[] {"Cary", "Mandy", "Randy"}));
 						event.getChannel().sendMessage("New ranked vote will be held").queue();
 						break;
 					case "binary":
@@ -51,15 +46,17 @@ public class AdminCommands extends ListenerAdapter {
 				logger.info("Command to hold new vote executed.");
 				break;
 			case "!endvote":
-				if (VoteManager.activeVote == null) {
-					event.getChannel().sendMessage("No vote is ongoing.").queue();
+				if (args.length < 2) {
+					event.getChannel().sendMessage("You need to provide the id of the vote to end it.").queue();
 					return;
 				}
 
 				event.getChannel().sendMessage("Vote ended.").queue();
 
-				VoteManager.declareResults(event.getChannel());
-				VoteManager.endActiveVote();
+				int voteId = Integer.parseInt(args[2]);
+
+				VoteManager.declareResults(voteId, event.getChannel());
+				VoteManager.endActiveVote(voteId);
 
 				logger.info("Command to end vote executed.");
 				break;

@@ -1,16 +1,14 @@
 package org.eoanb.voting.util;
 
 import org.eoanb.voting.handlers.RankedVotingHandler;
-import org.json.JSONArray;
 
-import java.io.IOException;
 import java.util.ArrayList;
 
 public class RankedVoter {
 	private final ArrayList<String> votes = new ArrayList<>();
 	private int votesCounted = 0;
 
-	public VoteStatus vote(int currentVote, String vote) {
+	public VoteStatus vote(RankedVotingHandler handler, int currentVote, String vote) {
 		if (currentVote != votesCounted) return VoteStatus.FAILED_SILENT;
 		votesCounted++;
 
@@ -19,27 +17,10 @@ public class RankedVoter {
 			votes.add(currentVote, vote);
 		}
 
-		if (votesCounted < RankedVotingHandler.candidates.length) {
+		if (votesCounted < handler.candidates.length) {
 			// Ask for next vote.
 			return VoteStatus.NEXT_VOTE;
-		} else if (votesCounted == RankedVotingHandler.candidates.length) {
-			{ // Save the votes.
-				String json = new JSONArray().toString();
-
-				try {
-					json = FileHandler.readFile(RankedVotingHandler.votesFile);
-				} catch (IOException ignored) { }
-
-				JSONArray jsonArray = new JSONArray(json);
-				jsonArray.put(new JSONArray(getVotes()));
-
-				try {
-					FileHandler.writeFile(RankedVotingHandler.votesFile, jsonArray.toString(4));
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
+		} else if (votesCounted == handler.candidates.length) {
 			return VoteStatus.SUCCESS;
 		} else {
 			votes.clear();
@@ -47,7 +28,7 @@ public class RankedVoter {
 		}
 	}
 
-	public String[] getVotes() {
-		return votes.toArray(new String[0]);
+	public ArrayList<String> getVotes() {
+		return votes;
 	}
 }

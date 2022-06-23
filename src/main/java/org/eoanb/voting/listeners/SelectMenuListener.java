@@ -14,9 +14,11 @@ public class SelectMenuListener extends ListenerAdapter {
 
 	@Override
 	public void onSelectMenuInteraction(@NotNull SelectMenuInteractionEvent event) {
+		// Get user id (to store data).
+		String id = event.getUser().getId();
 
 		// For ranked voting.
-		if (event.getComponentId().startsWith(RankedVotingHandler.RANKED_VOTE_PREFIX + "candidate") && VoteManager.activeVote instanceof RankedVotingHandler) {
+		if (event.getComponentId().startsWith(RankedVotingHandler.RANKED_VOTE_PREFIX + "candidate") && VoteManager.getActiveVoteFromUserID(id) instanceof RankedVotingHandler) {
 			// Get an int with the value of the current vote. This is done by getting the last character in the id string, and converting it to an integer.
 			int currentVote = -1;
 			try {
@@ -25,22 +27,18 @@ public class SelectMenuListener extends ListenerAdapter {
 				logger.error("Failed to parse what vote we are on. Resetting votes for {}", event.getUser().getName());
 			}
 
-			// Get user id (to store data).
-			String id = event.getUser().getId();
-
 			// Get vote.
 			String vote = event.getSelectedOptions().get(0).getValue();
 
 			// Send request to get next vote. (The handling of any possible errors is handled by this method.)
-			((RankedVotingHandler) VoteManager.activeVote).pollNextVote(id, event.getPrivateChannel(), currentVote, vote);
-		} else if (event.getComponentId().equals(BinaryVotingHandler.BINARY_VOTE_ID) && VoteManager.activeVote instanceof BinaryVotingHandler) {
-			// Get user id (to store data).
-			String id = event.getUser().getId();
+			((RankedVotingHandler) VoteManager.getActiveVoteFromUserID(id)).pollNextVote(id, event.getPrivateChannel(), currentVote, vote);
+		} else if (event.getComponentId().equals(BinaryVotingHandler.BINARY_VOTE_ID) && VoteManager.getActiveVoteFromUserID(id) instanceof BinaryVotingHandler) {
+
 
 			// Get vote.
 			String vote = event.getSelectedOptions().get(0).getValue();
 
-			((BinaryVotingHandler) VoteManager.activeVote).saveResult(id, event.getPrivateChannel(), vote);
+			((BinaryVotingHandler) VoteManager.getActiveVoteFromUserID(id)).finalise(id, event.getPrivateChannel(), vote);
 		}
 	}
 }

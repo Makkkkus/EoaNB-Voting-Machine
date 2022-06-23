@@ -29,6 +29,6 @@ public class Main {
 		api.addEventListener(new HelpCommand());
 		api.addEventListener(new SelectMenuListener());
 
-		VoteManager.initVote();
+		VoteManager.initVotes();
     }
 }

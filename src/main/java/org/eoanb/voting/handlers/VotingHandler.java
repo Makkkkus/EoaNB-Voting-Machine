@@ -5,6 +5,6 @@ import net.dv8tion.jda.api.entities.PrivateChannel;
 public interface VotingHandler {
 
 	void startVote(String id, PrivateChannel channel);
-	String getResults();
 	void cleanupVote();
+	void save();
 }

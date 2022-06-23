@@ -18,7 +18,7 @@ dependencies {
 
     implementation 'net.dv8tion:JDA:5.0.0-alpha.12'
     implementation 'org.slf4j:slf4j-simple:1.7.36'
-    implementation 'org.json:json:20220320'
+    implementation 'org.postgresql:postgresql:42.4.0'
 }
 
 test {

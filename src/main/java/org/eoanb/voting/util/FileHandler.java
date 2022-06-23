@@ -19,13 +19,17 @@ public class FileHandler {
 
 	}
 
-	public static String readFile(String filename) throws IOException {
+	public static String readFileJson(String filename) {
 		StringBuilder total = new StringBuilder();
 
 		try (BufferedReader br = new BufferedReader(new FileReader(STORE_DIRECTORY + "/" + filename))) {
 			String curLine;
 			while ((curLine = br.readLine()) != null)
 				total.append(curLine).append("\n");
+		} catch (IOException ignored) { }
+
+		if (total.toString().equals("")) {
+			total.append("{ }");
 		}
 
 		return total.toString();
@@ -35,6 +39,10 @@ public class FileHandler {
 		try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(STORE_DIRECTORY + "/" + filename))) {
 			bufferedWriter.write(data);
 		}
+	}
+
+	public static String[] getFileList() {
+		return new File(STORE_DIRECTORY).list();
 	}
 
 	public static boolean deleteFile(String filename) {
