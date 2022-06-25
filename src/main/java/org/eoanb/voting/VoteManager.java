@@ -1,14 +1,16 @@
 package org.eoanb.voting;
 
 import net.dv8tion.jda.api.entities.MessageChannel;
-import net.dv8tion.jda.api.entities.PrivateChannel;
 import org.eoanb.voting.handlers.VotingHandler;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
+import java.util.Random;
 
 public class VoteManager {
 	private static final Logger logger = LoggerFactory.getLogger(VoteManager.class);
@@ -16,44 +18,92 @@ public class VoteManager {
 	public static final String VOTING_CHANNEL = "980078789243580456";
 
 	@Nullable
-	private static final ArrayList<VotingHandler> activeVotes = new ArrayList<>();
-
-	// TODO: Replace this with a database.
-	private static final HashMap<String, Integer> userActiveVotes = new HashMap<>();
+	private static final HashMap<Integer, VotingHandler> activeVotes = new HashMap<>();
 
 	public static void initVotes() {
 		logger.info("Initialising voting system...");
+
+		// Delete table if it already exists.
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("DROP TABLE active_votes");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
+
+		// Create new table.
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("CREATE TABLE active_votes (UserID text, CurrentVote int)");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
 	}
 
-	public static void startVote(int voteID, String id, PrivateChannel channel) {
-		userActiveVotes.put(id, voteID);
+	public static void startVote(int voteID, VotingHandler system) {
+		activeVotes.put(voteID, system);
 
+		logger.info("Started new vote with id {}.", voteID);
+	}
+
+	public static void postResults(int voteId, MessageChannel channel) {
 		assert activeVotes != null;
-		activeVotes.get(voteID).startVote(id, channel);
-	}
-
-	public static void setActiveVote(VotingHandler system) {
-		assert activeVotes != null;
-		activeVotes.add(system);
-
-		logger.info("Successfully changed voting system.");
-	}
-
-	public static void declareResults(int voteId, MessageChannel channel) {
 
 		channel.sendMessage("").queue();
 	}
 
-	public static void endActiveVote(int voteId) {
+	public static void endVote(int voteId) {
 		assert activeVotes != null;
-		activeVotes.get(voteId).cleanupVote();
+		activeVotes.get(voteId).endVote();
 
 		logger.info("Successfully ended vote.");
 	}
 
-	public static VotingHandler getActiveVoteFromUserID(String id) {
-		assert activeVotes != null;
-		return activeVotes.get(userActiveVotes.get(id));
+	public static VotingHandler getVoteFromUserID(String id) {
+		try {
+			// Get ResultSet with the current vote active by this user.
+			Statement st = Main.db.getConnection().createStatement();
+			ResultSet rs = st.executeQuery("SELECT CurrentVote FROM active_votes WHERE UserID='" + id + "'");
+
+			// Check if row exists.
+			if (rs.next()) {
+				// Return the found result.
+				assert activeVotes != null;
+				return activeVotes.get(rs.getInt(1));
+			}
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
+
+		return null;
 	}
 
+	public static VotingHandler getVoteFromVoteID(int id) {
+		return activeVotes.get(id);
+	}
+
+	public static HashMap<Integer, VotingHandler> getActiveVotes() {
+		return activeVotes;
+	}
+
+	public static int generateUniqueID() {
+		Random random = new Random();
+		int id = random.nextInt();
+
+		assert activeVotes != null;
+
+		// Check if id is available.
+		int tries = 0;
+		while (activeVotes.containsKey(id)) {
+			tries++;
+			id = random.nextInt();
+
+			if (tries > 999) {
+				logger.error("Could not find valid vote id.");
+				System.exit(-1);
+			}
+		}
+
+		return id;
+	}
 }

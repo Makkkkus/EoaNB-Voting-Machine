@@ -5,12 +5,15 @@ import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
+import org.eoanb.voting.Main;
 import org.eoanb.voting.util.RankedVoter;
 import org.eoanb.voting.util.VoteStatus;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,11 +25,14 @@ public class RankedVotingHandler implements VotingHandler {
 
 	public final String[] candidates;
 
-	// TODO: Replace these with a database.
 	private final HashMap<String, @Nullable RankedVoter> voters = new HashMap<>();
+	private final int voteID;
+
+	// TODO: Replace this with a database.
 	private final HashSet<ArrayList<String>> votes = new HashSet<>();
 
-	public RankedVotingHandler(String[] candidates) {
+	public RankedVotingHandler(int voteID, String[] candidates) {
+		this.voteID = voteID;
 		this.candidates = candidates;
 	}
 
@@ -37,6 +43,13 @@ public class RankedVotingHandler implements VotingHandler {
 			return;
 		}
 
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("INSERT INTO active_votes VALUES (" + id + ", " + voteID + ")");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
+
 		voters.put(id, new RankedVoter());
 
 		// Send first select menu.
@@ -44,11 +57,7 @@ public class RankedVotingHandler implements VotingHandler {
 	}
 
 	@Override
-	public void cleanupVote() {
-	}
-
-	@Override
-	public void save() {
+	public void endVote() {
 
 	}
 

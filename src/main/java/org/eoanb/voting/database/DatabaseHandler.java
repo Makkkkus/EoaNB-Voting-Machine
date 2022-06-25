@@ -44,66 +44,7 @@ public class DatabaseHandler {
 		}
 	}
 
-	public ResultSet getColumn(String table, String column) {
-		try {
-			Statement st = connection.createStatement();
-
-			return st.executeQuery("SELECT " + column + " FROM " + table);
-		} catch (SQLException ex) {
-			logger.error(ex.getMessage());
-			logger.error("Error loading column {} in table {}.", column, table);
-
-			return null;
-		}
-	}
-
-	public void insertColumn(String table, Object[] data) {
-
-	}
-
-	public void createTable(String name, HashMap<String, DataType> args) {
-		try {
-			StringBuilder builder = new StringBuilder();
-
-			builder.append("CREATE TABLE ").append(name).append(" (");
-
-			for (String arg : args.keySet()) {
-				builder.append(arg)
-					.append(" ")
-					.append(convertDataTypeToText(args.get(arg), 0))
-					.append(",");
-			}
-
-			builder.deleteCharAt(builder.length());
-
-			builder.append(" )");
-
-			Statement st = connection.createStatement();
-			ResultSet rs = st.executeQuery(builder.toString());
-
-			rs.next();
-
-			st.close();
-			rs.close();
-		} catch (SQLException ex) {
-			logger.error(ex.getMessage());
-			logger.error("Could not create table with name '{}'", name);
-		}
-	}
-
-	public String convertDataTypeToText(DataType dataType, int size) {
-		switch (dataType) {
-			case STRING:
-				return "text";
-			case INTEGER:
-				return "int";
-			default:
-				return "";
-		}
-	}
-
-	public enum DataType {
-		STRING,
-		INTEGER
+	public Connection getConnection() {
+		return connection;
 	}
 }

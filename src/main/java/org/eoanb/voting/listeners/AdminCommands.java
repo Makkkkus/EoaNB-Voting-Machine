@@ -25,17 +25,28 @@ public class AdminCommands extends ListenerAdapter {
 					return;
 				}
 
+				// Generate id.
+				int id = VoteManager.generateUniqueID();
+
 				switch (args[1].toLowerCase()) {
 					case "ranked":
-						VoteManager.setActiveVote(new RankedVotingHandler(new String[] {"Cary", "Mandy", "Randy"}));
+						// Create vote
+						VoteManager.startVote(id, new RankedVotingHandler(id, new String[] {"Cary", "Mandy", "Randy"}));
 						event.getChannel().sendMessage("New ranked vote will be held").queue();
 						break;
 					case "binary":
-						if (args.length < 3) return;
+						// Error
+						if (args.length < 3) {
+							event.getChannel().sendMessage("Too few arguments; Binary voting requires a description.").queue();
+							return;
+						}
+
+						// Combine the succeeding arguments into one string. (The description.)
 						StringBuilder string = new StringBuilder();
 						for (int i = 2; i < args.length; i++) string.append(args[i]).append(" ");
 
-						VoteManager.setActiveVote(new BinaryVotingHandler(string.toString()));
+						// Create vote
+						VoteManager.startVote(id, new BinaryVotingHandler(id, string.toString()));
 						event.getChannel().sendMessage("New vote is being held with description: " + string).queue();
 						break;
 					default:
@@ -55,8 +66,8 @@ public class AdminCommands extends ListenerAdapter {
 
 				int voteId = Integer.parseInt(args[2]);
 
-				VoteManager.declareResults(voteId, event.getChannel());
-				VoteManager.endActiveVote(voteId);
+				VoteManager.postResults(voteId, event.getChannel());
+				VoteManager.endVote(voteId);
 
 				logger.info("Command to end vote executed.");
 				break;

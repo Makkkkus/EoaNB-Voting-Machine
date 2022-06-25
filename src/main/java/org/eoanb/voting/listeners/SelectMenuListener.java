@@ -18,7 +18,7 @@ public class SelectMenuListener extends ListenerAdapter {
 		String id = event.getUser().getId();
 
 		// For ranked voting.
-		if (event.getComponentId().startsWith(RankedVotingHandler.RANKED_VOTE_PREFIX + "candidate") && VoteManager.getActiveVoteFromUserID(id) instanceof RankedVotingHandler) {
+		if (event.getComponentId().startsWith(RankedVotingHandler.RANKED_VOTE_PREFIX + "candidate") && VoteManager.getVoteFromUserID(id) instanceof RankedVotingHandler) {
 			// Get an int with the value of the current vote. This is done by getting the last character in the id string, and converting it to an integer.
 			int currentVote = -1;
 			try {
@@ -31,14 +31,13 @@ public class SelectMenuListener extends ListenerAdapter {
 			String vote = event.getSelectedOptions().get(0).getValue();
 
 			// Send request to get next vote. (The handling of any possible errors is handled by this method.)
-			((RankedVotingHandler) VoteManager.getActiveVoteFromUserID(id)).pollNextVote(id, event.getPrivateChannel(), currentVote, vote);
-		} else if (event.getComponentId().equals(BinaryVotingHandler.BINARY_VOTE_ID) && VoteManager.getActiveVoteFromUserID(id) instanceof BinaryVotingHandler) {
-
+			((RankedVotingHandler) VoteManager.getVoteFromUserID(id)).pollNextVote(id, event.getPrivateChannel(), currentVote, vote);
+		} else if (event.getComponentId().equals(BinaryVotingHandler.BINARY_VOTE_ID) && VoteManager.getVoteFromUserID(id) instanceof BinaryVotingHandler) {
 
 			// Get vote.
 			String vote = event.getSelectedOptions().get(0).getValue();
 
-			((BinaryVotingHandler) VoteManager.getActiveVoteFromUserID(id)).finalise(id, event.getPrivateChannel(), vote);
+			((BinaryVotingHandler) VoteManager.getVoteFromUserID(id)).finalise(id, event.getPrivateChannel(), vote);
 		}
 	}
 }

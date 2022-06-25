@@ -5,9 +5,12 @@ import net.dv8tion.jda.api.entities.PrivateChannel;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
+import org.eoanb.voting.Main;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Locale;
@@ -19,13 +22,24 @@ public class BinaryVotingHandler implements VotingHandler {
 
 	private final String[] options = { "Approve", "Disapprove" };
 	private final String voteDescription;
+	private final String voteName;
+	private final int voteID;
 
 	// TODO: Replace these with a database.
 	private final HashSet<String> voters = new HashSet<>();
 	private final HashSet<String> votes = new HashSet<>();
 
-	public BinaryVotingHandler(String description) {
-		voteDescription = description;
+	public BinaryVotingHandler(int id, String description) {
+		this.voteDescription = description;
+		this.voteName = id + "_binary";
+		this.voteID = id;
+
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("CREATE TABLE " + voteName + " (vote boolean)");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
 	}
 
 	@Override
@@ -33,6 +47,13 @@ public class BinaryVotingHandler implements VotingHandler {
 		if (voters.contains(id)) {
 			channel.sendMessage("You have already voted.").queue();
 			return;
+		}
+
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("INSERT INTO active_votes VALUES (" + id + ", " + voteID + ")");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
 		}
 
 		ArrayList<SelectOption> selectCandidates = new ArrayList<>();
@@ -53,12 +74,7 @@ public class BinaryVotingHandler implements VotingHandler {
 	}
 
 	@Override
-	public void cleanupVote() {
-	}
-
-	@Override
-	public void save() {
-
+	public void endVote() {
 	}
 
 	public void finalise(String id, PrivateChannel channel, String vote) {
