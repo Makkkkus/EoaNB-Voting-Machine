@@ -2,7 +2,9 @@ package org.eoanb.voting.handlers;
 
 import net.dv8tion.jda.api.MessageBuilder;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.events.interaction.component.SelectMenuInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
 import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.internal.interactions.component.SelectMenuImpl;
 import org.eoanb.voting.Main;
@@ -14,9 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 public class RankedVotingHandler implements VotingHandler {
 	private static final Logger logger = LoggerFactory.getLogger(RankedVotingHandler.class);
@@ -24,28 +24,41 @@ public class RankedVotingHandler implements VotingHandler {
 	public static final String RANKED_VOTE_PREFIX = "rpvoting_";
 
 	public final String[] candidates;
+	private final String voteName;
 
 	private final HashMap<String, @Nullable RankedVoter> voters = new HashMap<>();
-	private final int voteID;
-
-	// TODO: Replace this with a database.
-	private final HashSet<ArrayList<String>> votes = new HashSet<>();
 
 	public RankedVotingHandler(int voteID, String[] candidates) {
-		this.voteID = voteID;
 		this.candidates = candidates;
+
+		Random random = new Random();
+		String generatedString = random.ints(97, 123)
+			.limit(5)
+			.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+			.toString();
+
+		this.voteName = generatedString + "_ranked";
+
+		// Create table to store votes.
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("CREATE TABLE " + voteName + " (userID text, vote text)");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
 	}
 
 	@Override
-	public void startVote(String id, PrivateChannel channel) {
+	public void startVote(String id, int voteID, PrivateChannel channel) {
 		if (voters.containsKey(id)) {
 			channel.sendMessage("You have already voted.").queue();
 			return;
 		}
 
+		// Insert this voter into active_voters.
 		try {
 			Statement st = Main.db.getConnection().createStatement();
-			st.execute("INSERT INTO active_votes VALUES (" + id + ", " + voteID + ")");
+			st.execute("INSERT INTO active_voters VALUES (" + id + ", " + voteID + ")");
 		} catch (SQLException ex) {
 			logger.error(ex.getMessage());
 		}
@@ -53,15 +66,78 @@ public class RankedVotingHandler implements VotingHandler {
 		voters.put(id, new RankedVoter());
 
 		// Send first select menu.
-		sendSelectMenu(0, null, channel);
+		ArrayList<SelectOption> selectCandidates = new ArrayList<>();
+		for (String candidate : candidates) {
+			selectCandidates.add(SelectOption.of(candidate, candidate));
+		}
+
+		channel.sendMessage(new MessageBuilder()
+			.setContent("Insert your choice into this form.")
+			.setActionRows(ActionRow.of(new SelectMenuImpl(
+				RANKED_VOTE_PREFIX + "candidate" + 0,
+				"Candidate " + 1,
+				1,
+				1,
+				false,
+				selectCandidates)))
+			.build()).queue();
+	}
+
+	@Override
+	public void finish(ComponentInteraction event, String id, String vote) {
+		// If we are done voting and should apply those votes.
+		StringBuilder message = new StringBuilder("Successfully voted for:");
+
+		String rawVoteList = vote.substring(1, vote.length()-1);
+		String[] votes = rawVoteList.split(",");
+
+		for (String preference : votes) {
+			message.append(" ");
+			message.append(preference);
+		}
+
+		message.append(".");
+		event.getHook().sendMessage(message.toString()).queue();
+
+		logger.info("User with id \"{}\" finished voting.", id);
+
+		// Delete voter.
+		voters.remove(id);
+
+		// Save votes.
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("INSERT INTO " + voteName + " VALUES ('" + id + "', '" + rawVoteList + "')");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
+
+		// Remove from active voters.
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("DELETE FROM active_voters WHERE userID='" + id + "'");
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
 	}
 
 	@Override
 	public void endVote() {
-
+		// Delete table.
+		try {
+			Statement st = Main.db.getConnection().createStatement();
+			st.execute("DROP TABLE " + voteName);
+		} catch (SQLException ex) {
+			logger.error(ex.getMessage());
+		}
 	}
 
-	public void pollNextVote(String id, PrivateChannel channel, int currentVote, String voteString) {
+	@Override
+	public String getDescription() {
+		return "Ranked vote with options" + Arrays.toString(candidates);
+	}
+
+	public void pollNextVote(ComponentInteraction event, String id, int currentVote, String voteString) {
 		// Get the voter.
 		RankedVoter voter = voters.get(id);
 
@@ -81,33 +157,18 @@ public class RankedVotingHandler implements VotingHandler {
 		// Do stuff according to the result of the vote.
 		switch (status) {
 			case SUCCESS:
-				// If we are done voting and should apply those votes.
-				StringBuilder message = new StringBuilder("Successfully voted for:");
-
-				for (String preference : voter.getVotes()) {
-					message.append(" ");
-					message.append(preference);
-				}
-
-				message.append(".");
-				channel.sendMessage(message.toString()).queue();
-
-				logger.info("User with id \"{}\" finished voting.", id);
-
-				// Save.
-				voters.put(id, null);
-				votes.add(voter.getVotes());
+				finish(event, id, voter.getVotes().toString());
 				break;
 			case NEXT_VOTE:
-				sendSelectMenu(currentVote + 1, voter.getVotes(), channel);
+				sendSelectMenu(event, currentVote + 1, voter.getVotes());
 				break;
 			case FAILED:
-				channel.sendMessage("Error when voting. Please try again.").queue();
+				event.getHook().sendMessage("Error when voting. Please try again.").queue();
 				break;
 		}
 	}
 
-	private void sendSelectMenu(int voteNumber, @Nullable ArrayList<String> ignoredCandidates, PrivateChannel channel) {
+	private void sendSelectMenu(ComponentInteraction event, int voteNumber, ArrayList<String> ignoredCandidates) {
 		ArrayList<SelectOption> selectCandidates = new ArrayList<>();
 
 		// Add blank vote.
@@ -121,7 +182,7 @@ public class RankedVotingHandler implements VotingHandler {
 			selectCandidates.add(SelectOption.of(candidate, candidate));
 		}
 
-		channel.sendMessage(new MessageBuilder()
+		event.getHook().sendMessage(new MessageBuilder()
 			.setContent("Insert your choice into this form.")
 			.setActionRows(ActionRow.of(new SelectMenuImpl(
 				RANKED_VOTE_PREFIX + "candidate" + voteNumber,

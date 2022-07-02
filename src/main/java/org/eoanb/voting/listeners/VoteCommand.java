@@ -22,24 +22,45 @@ public class VoteCommand extends ListenerAdapter {
 		// Only people who can vote should be able to vote.
 		//if (!event.getChannel().equals(event.getJDA().getGuildChannelById(VoteManager.VOTING_CHANNEL))) return;
 
-		// Get the content of the message.
-		String message = event.getMessage().getContentStripped();
+		// Get the content of the message and put it in an array.
+		String[] args = event.getMessage().getContentStripped().trim().split("\\s+");
 
 		// Check if the command is to vote.
-		if (message.equalsIgnoreCase("!vote")) {
+		if (args[0].equalsIgnoreCase("!vote")) {
 			logger.info("Received command to vote by {}", event.getAuthor().getName());
 			event.getChannel().sendMessage("Received voting request; check DMs.").queue();
 
 			event.getAuthor().openPrivateChannel().queue(channel -> {
-				if (!channel.canTalk()) logger.error("Can't send DM to {}", channel.getName());
+				assert VoteManager.getActiveVotes() != null;
+				// Check if there are any active votes.
+				if (VoteManager.getActiveVotes().isEmpty()) {
+					event.getChannel().sendMessage("There are no active votes.").queue();
+					return;
+				}
+
+				// Too few arguments error
+				if (args.length < 2) {
+					event.getChannel().sendMessage("Too few arguments; You need to provide a vote id.").queue();
+					return;
+				}
 
 				String id = event.getAuthor().getId();
 
-				assert VoteManager.getActiveVotes() != null;
-				int voteID = VoteManager.getActiveVotes().keySet().toArray(new Integer[0])[0];
+				int voteID;
+				try {
+					voteID = Integer.parseInt(args[1]);
+				} catch (NumberFormatException ex) {
+					logger.error(ex.getMessage());
+					event.getChannel().sendMessage("Vote id must be a number.").queue();
+					return;
+				}
 
-				assert VoteManager.getVoteFromVoteID(voteID) != null;
-				VoteManager.getVoteFromVoteID(voteID).startVote(id, channel);
+				if (!VoteManager.getActiveVotes().containsKey(voteID)) {
+					event.getChannel().sendMessage("Vote isn't valid, use !listvotes to get a list of active votes.").queue();
+					return;
+				}
+
+				VoteManager.getVoteFromVoteID(voteID).startVote(id, voteID, channel);
 			});
 		}
 	}

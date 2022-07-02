@@ -1,6 +1,7 @@
 package org.eoanb.voting;
 
 import net.dv8tion.jda.api.entities.MessageChannel;
+import net.dv8tion.jda.api.entities.PrivateChannel;
 import org.eoanb.voting.handlers.VotingHandler;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -23,24 +24,25 @@ public class VoteManager {
 	public static void initVotes() {
 		logger.info("Initialising voting system...");
 
-		// Delete table if it already exists.
+		// Create new table.
 		try {
 			Statement st = Main.db.getConnection().createStatement();
-			st.execute("DROP TABLE active_votes");
+			st.execute("CREATE TABLE active_voters (UserID text, CurrentVote int)");
 		} catch (SQLException ex) {
 			logger.error(ex.getMessage());
 		}
 
-		// Create new table.
+		// Clear table.
 		try {
 			Statement st = Main.db.getConnection().createStatement();
-			st.execute("CREATE TABLE active_votes (UserID text, CurrentVote int)");
+			st.execute("TRUNCATE TABLE active_voters");
 		} catch (SQLException ex) {
 			logger.error(ex.getMessage());
 		}
 	}
 
 	public static void startVote(int voteID, VotingHandler system) {
+		assert activeVotes != null;
 		activeVotes.put(voteID, system);
 
 		logger.info("Started new vote with id {}.", voteID);
@@ -49,21 +51,26 @@ public class VoteManager {
 	public static void postResults(int voteId, MessageChannel channel) {
 		assert activeVotes != null;
 
-		channel.sendMessage("").queue();
+		channel.sendMessage("none").queue();
 	}
 
 	public static void endVote(int voteId) {
 		assert activeVotes != null;
+
+		// End vote
 		activeVotes.get(voteId).endVote();
 
-		logger.info("Successfully ended vote.");
+		// Remove vote from list.
+		activeVotes.remove(voteId);
+
+		logger.info("Successfully ended vote with id {}.", voteId);
 	}
 
 	public static VotingHandler getVoteFromUserID(String id) {
 		try {
 			// Get ResultSet with the current vote active by this user.
 			Statement st = Main.db.getConnection().createStatement();
-			ResultSet rs = st.executeQuery("SELECT CurrentVote FROM active_votes WHERE UserID='" + id + "'");
+			ResultSet rs = st.executeQuery("SELECT CurrentVote FROM active_voters WHERE UserID='" + id + "'");
 
 			// Check if row exists.
 			if (rs.next()) {
